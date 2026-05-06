@@ -97,6 +97,7 @@ std::array<NimBLEClient*, MYNEWT_VAL(BLE_MAX_CONNECTIONS)> NimBLEDevice::m_pClie
 bool                       NimBLEDevice::m_initialized{false};
 uint32_t                   NimBLEDevice::m_passkey{123456};
 bool                       NimBLEDevice::m_synced{false};
+volatile bool              NimBLEDevice::m_hostTaskRunning{false};
 ble_gap_event_listener     NimBLEDevice::m_listener{};
 std::vector<NimBLEAddress> NimBLEDevice::m_whiteList{};
 uint8_t                    NimBLEDevice::m_ownAddrType{BLE_OWN_ADDR_PUBLIC};
@@ -878,8 +879,10 @@ void NimBLEDevice::onSync(void) {
  * @brief The main host task.
  */
 void NimBLEDevice::host_task(void* param) {
+    m_hostTaskRunning = true;
     NIMBLE_LOGI(LOG_TAG, "NimBLE Started!");
     nimble_port_run(); // This function will return only when nimble_port_stop() is executed
+    m_hostTaskRunning = false;
     nimble_port_freertos_deinit();
 } // host_task
 
@@ -1027,6 +1030,10 @@ bool NimBLEDevice::deinit(bool clearAll) {
     if (m_initialized) {
         rc = nimble_port_stop();
         if (rc == 0) {
+            // Wait for host task to finish
+            while(m_hostTaskRunning) {
+                ble_npl_time_delay(1);
+            }
             nimble_port_deinit();
 # ifndef USING_NIMBLE_ARDUINO_HEADERS
 #  if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)

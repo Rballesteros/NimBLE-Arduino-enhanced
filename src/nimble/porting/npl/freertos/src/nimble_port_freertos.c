@@ -66,13 +66,22 @@ esp_err_t esp_nimble_enable(void *host_task)
  */
 esp_err_t esp_nimble_disable(void)
 {
+    TaskHandle_t current = xTaskGetCurrentTaskHandle();
+    if (current != NULL && pcTaskGetName(NULL) != NULL) {
+        const char *task_name = pcTaskGetName(NULL);
+        if (strcmp(task_name, "nimble_host") == 0 || strcmp(task_name, "host") == 0) {
+            if (host_task_h == current) {
+                host_task_h = NULL;
+            }
+            vTaskDelete(NULL);
+        }
+    }
     if (host_task_h) {
         vTaskDelete(host_task_h);
         host_task_h = NULL;
     }
     return ESP_OK;
 }
-
 
 /**
  * @brief nimble_port_freertos_init - Adapt to native nimble api

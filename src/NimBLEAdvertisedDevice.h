@@ -97,6 +97,7 @@ class NimBLEAdvertisedDevice {
     operator NimBLEAddress() const;
 
     const std::vector<uint8_t>&                getPayload() const;
+    void                                       clearPayload();
     const std::vector<uint8_t>::const_iterator begin() const;
     const std::vector<uint8_t>::const_iterator end() const;
 

@@ -87,6 +87,14 @@ void NimBLEAdvertisedDevice::update(const ble_gap_event* event, uint8_t eventTyp
 } // update
 
 /**
+ * @brief Clear the advertisement payload to free memory.
+ */
+void NimBLEAdvertisedDevice::clearPayload() {
+    m_payload.clear();
+    m_payload.shrink_to_fit();
+} // clearPayload
+
+/**
  * @brief Get the address of the advertising device.
  * @return The address of the advertised device.
  */

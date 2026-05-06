@@ -77,6 +77,7 @@ class NimBLEScan {
     void              setDuplicateFilter(uint8_t enabled);
     void              setLimitedOnly(bool enabled);
     void              setFilterPolicy(uint8_t filter);
+    void              setFilterWhitelist(bool enable);
     bool              stop();
     void              clearResults();
     NimBLEScanResults getResults();

@@ -445,6 +445,14 @@ void NimBLEScan::setFilterPolicy(uint8_t filter) {
 } // setFilterPolicy
 
 /**
+ * @brief Enable or disable whitelist filtering.
+ * @param [in] enable True to use the whitelist, false to process all advertisements.
+ */
+void NimBLEScan::setFilterWhitelist(bool enable) {
+    m_scanParams.filter_policy = enable ? 1 : 0;
+} // setFilterWhitelist
+
+/**
  * @brief Sets the max number of results to store.
  * @param [in] maxResults The number of results to limit storage to\n
  * 0 == none (callbacks only) 0xFF == unlimited, any other value is the limit.

@@ -248,6 +248,10 @@ npl_freertos_mutex_deinit(struct ble_npl_mutex *mu)
 
     if (mu->handle) {
         vSemaphoreDelete(mu->handle);
+        /* Crosspoint patch: null the handle so a subsequent init/pend doesn't
+         * see a dangling pointer. Upstream NimBLE leaks this on deinit, which
+         * causes init-after-deinit asserts on ESP32-C3. */
+        mu->handle = NULL;
     }
 
     return BLE_NPL_OK;
@@ -262,7 +266,16 @@ npl_freertos_mutex_pend(struct ble_npl_mutex *mu, ble_npl_time_t timeout)
         return BLE_NPL_INVALID_PARAM;
     }
 
-    assert(mu->handle);
+    /* Crosspoint patch: self-heal stale/uninitialized mutex by lazy-creating
+     * a handle. The host stack has subsystems that don't fully re-init their
+     * mutexes after a deinit/init cycle; instead of asserting and rebooting,
+     * just create one on demand. */
+    if (!mu->handle) {
+        mu->handle = xSemaphoreCreateRecursiveMutex();
+        if (!mu->handle) {
+            return BLE_NPL_ENOENT;
+        }
+    }
 
     if (in_isr()) {
         ret = pdFAIL;
@@ -281,7 +294,12 @@ npl_freertos_mutex_release(struct ble_npl_mutex *mu)
         return BLE_NPL_INVALID_PARAM;
     }
 
-    assert(mu->handle);
+    /* Crosspoint patch: silently no-op a release on a stale handle instead of
+     * asserting. If init was missed, pend() above will have created the handle
+     * and the matching release is a real one. */
+    if (!mu->handle) {
+        return BLE_NPL_BAD_MUTEX;
+    }
 
     if (in_isr()) {
         assert(0);
@@ -316,6 +334,8 @@ npl_freertos_sem_deinit(struct ble_npl_sem *sem)
 
     if (sem->handle) {
         vSemaphoreDelete(sem->handle);
+        /* Crosspoint patch: see mutex_deinit. */
+        sem->handle = NULL;
     }
 
     return BLE_NPL_OK;
@@ -331,7 +351,14 @@ npl_freertos_sem_pend(struct ble_npl_sem *sem, ble_npl_time_t timeout)
         return BLE_NPL_INVALID_PARAM;
     }
 
-    assert(sem->handle);
+    /* Crosspoint patch: lazy-create on stale/uninitialized handle to survive
+     * partial re-init in the host stack. */
+    if (!sem->handle) {
+        sem->handle = xSemaphoreCreateCounting(128, 0);
+        if (!sem->handle) {
+            return BLE_NPL_ENOENT;
+        }
+    }
 
     if (in_isr()) {
         assert(timeout == 0);
@@ -360,7 +387,11 @@ npl_freertos_sem_release(struct ble_npl_sem *sem)
         return BLE_NPL_INVALID_PARAM;
     }
 
-    assert(sem->handle);
+    /* Crosspoint patch: silently no-op on a stale handle. Pend() above will
+     * have lazy-created any handle we actually need. */
+    if (!sem->handle) {
+        return BLE_NPL_ERROR;
+    }
 
     if (in_isr()) {
         ret = xSemaphoreGiveFromISR(sem->handle, &woken);

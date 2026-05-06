@@ -60,6 +60,7 @@ class NimBLEAddress : private ble_addr_t {
     std::string          toString() const;
     uint8_t              getType() const;
     const uint8_t*       getVal() const;
+    void                 toChars(char buffer[18]) const;
     const NimBLEAddress& reverseByteOrder();
     bool                 operator==(const NimBLEAddress& rhs) const;
     bool                 operator!=(const NimBLEAddress& rhs) const;

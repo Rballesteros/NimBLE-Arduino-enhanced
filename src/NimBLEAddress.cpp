@@ -204,6 +204,27 @@ std::string NimBLEAddress::toString() const {
 } // toString
 
 /**
+ * @brief Populate a 18-byte buffer with the address string.
+ * @param [out] buffer The buffer to populate.
+ */
+void NimBLEAddress::toChars(char buffer[18]) const {
+    snprintf(buffer,
+             18,
+             NIMBLE_CPP_ADDR_FMT,
+             this->val[5],
+             NIMBLE_CPP_ADDR_DELIMITER,
+             this->val[4],
+             NIMBLE_CPP_ADDR_DELIMITER,
+             this->val[3],
+             NIMBLE_CPP_ADDR_DELIMITER,
+             this->val[2],
+             NIMBLE_CPP_ADDR_DELIMITER,
+             this->val[1],
+             NIMBLE_CPP_ADDR_DELIMITER,
+             this->val[0]);
+} // toChars
+
+/**
  * @brief Reverse the byte order of the address.
  * @return A reference to this address.
  */
@@ -236,20 +257,7 @@ bool NimBLEAddress::operator!=(const NimBLEAddress& rhs) const {
  */
 NimBLEAddress::operator std::string() const {
     char buffer[18];
-    snprintf(buffer,
-             sizeof(buffer),
-             NIMBLE_CPP_ADDR_FMT,
-             this->val[5],
-             NIMBLE_CPP_ADDR_DELIMITER,
-             this->val[4],
-             NIMBLE_CPP_ADDR_DELIMITER,
-             this->val[3],
-             NIMBLE_CPP_ADDR_DELIMITER,
-             this->val[2],
-             NIMBLE_CPP_ADDR_DELIMITER,
-             this->val[1],
-             NIMBLE_CPP_ADDR_DELIMITER,
-             this->val[0]);
+    this->toChars(buffer);
     return std::string{buffer};
 } // operator std::string
 

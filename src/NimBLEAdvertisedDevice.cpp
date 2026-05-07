@@ -90,8 +90,8 @@ void NimBLEAdvertisedDevice::update(const ble_gap_event* event, uint8_t eventTyp
  * @brief Clear the advertisement payload to free memory.
  */
 void NimBLEAdvertisedDevice::clearPayload() {
-    m_payload.clear();
-    m_payload.shrink_to_fit();
+    m_advLength = 0;
+    std::vector<uint8_t>().swap(m_payload);
 } // clearPayload
 
 /**

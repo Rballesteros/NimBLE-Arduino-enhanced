@@ -1027,28 +1027,39 @@ bool NimBLEDevice::init(const std::string& deviceName) {
  */
 bool NimBLEDevice::deinit(bool clearAll) {
     int rc = 0;
+    bool stackStopped = !m_initialized;
     if (m_initialized) {
         rc = nimble_port_stop();
         if (rc == 0) {
-            // Wait for host task to finish
-            while(m_hostTaskRunning) {
+            constexpr uint32_t HOST_TASK_STOP_TIMEOUT_MS = 1000;
+            uint32_t waitedMs = 0;
+            while (m_hostTaskRunning && waitedMs < HOST_TASK_STOP_TIMEOUT_MS) {
                 ble_npl_time_delay(1);
+                waitedMs++;
             }
-            nimble_port_deinit();
+            if (m_hostTaskRunning) {
+                NIMBLE_LOGE(LOG_TAG, "Timed out waiting for NimBLE host task to stop");
+                rc = BLE_HS_ETIMEOUT;
+            } else {
+                nimble_port_deinit();
 # ifndef USING_NIMBLE_ARDUINO_HEADERS
 #  if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
-            rc = esp_nimble_hci_and_controller_deinit();
-            if (rc != ESP_OK) {
-                NIMBLE_LOGE(LOG_TAG, "esp_nimble_hci_and_controller_deinit() failed with error: %d", rc);
-            }
+                rc = esp_nimble_hci_and_controller_deinit();
+                if (rc != ESP_OK) {
+                    NIMBLE_LOGE(LOG_TAG, "esp_nimble_hci_and_controller_deinit() failed with error: %d", rc);
+                }
 #  endif
 # endif
-            m_initialized = false;
-            m_synced      = false;
+                if (rc == 0) {
+                    m_initialized = false;
+                    m_synced      = false;
+                    stackStopped  = true;
+                }
+            }
         }
     }
 
-    if (clearAll) {
+    if (clearAll && stackStopped) {
 # if MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
         if (NimBLEDevice::m_pServer != nullptr) {
             delete NimBLEDevice::m_pServer;

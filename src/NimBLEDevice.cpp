@@ -97,7 +97,7 @@ std::array<NimBLEClient*, MYNEWT_VAL(BLE_MAX_CONNECTIONS)> NimBLEDevice::m_pClie
 bool                       NimBLEDevice::m_initialized{false};
 uint32_t                   NimBLEDevice::m_passkey{123456};
 bool                       NimBLEDevice::m_synced{false};
-volatile bool              NimBLEDevice::m_hostTaskRunning{false};
+std::atomic<bool>          NimBLEDevice::m_hostTaskRunning{false};
 ble_gap_event_listener     NimBLEDevice::m_listener{};
 std::vector<NimBLEAddress> NimBLEDevice::m_whiteList{};
 uint8_t                    NimBLEDevice::m_ownAddrType{BLE_OWN_ADDR_PUBLIC};

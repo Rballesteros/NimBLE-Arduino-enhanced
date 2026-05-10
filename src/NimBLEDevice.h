@@ -40,6 +40,7 @@
 # undef max
 /**************************/
 
+# include <atomic>
 # include <string>
 # include <vector>
 
@@ -215,7 +216,7 @@ class NimBLEDevice {
 
   private:
     static bool                       m_synced;
-    static volatile bool              m_hostTaskRunning;
+    static std::atomic<bool>          m_hostTaskRunning;
     static bool                       m_initialized;
     static uint32_t                   m_passkey;
     static ble_gap_event_listener     m_listener;

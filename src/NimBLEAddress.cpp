@@ -204,12 +204,12 @@ std::string NimBLEAddress::toString() const {
 } // toString
 
 /**
- * @brief Populate a 18-byte buffer with the address string.
- * @param [out] buffer The buffer to populate.
+ * @brief Populate a fixed-size buffer with the address string ("XX:XX:XX:XX:XX:XX\0").
+ * @param [out] buffer The buffer to populate. Reference-to-array enforces size at compile time.
  */
-void NimBLEAddress::toChars(char buffer[18]) const {
+void NimBLEAddress::toChars(char (&buffer)[kAddrStrLen]) const {
     snprintf(buffer,
-             18,
+             kAddrStrLen,
              NIMBLE_CPP_ADDR_FMT,
              this->val[5],
              NIMBLE_CPP_ADDR_DELIMITER,
@@ -256,7 +256,7 @@ bool NimBLEAddress::operator!=(const NimBLEAddress& rhs) const {
  * @details This allows passing NimBLEAddress to functions that accept std::string and/or it's methods as a parameter.
  */
 NimBLEAddress::operator std::string() const {
-    char buffer[18];
+    char buffer[kAddrStrLen];
     this->toChars(buffer);
     return std::string{buffer};
 } // operator std::string

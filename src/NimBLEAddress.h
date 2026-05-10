@@ -41,6 +41,9 @@
  */
 class NimBLEAddress : private ble_addr_t {
   public:
+    /** @brief Length of the printable BLE address string ("XX:XX:XX:XX:XX:XX") plus null terminator. */
+    static constexpr size_t kAddrStrLen = 18;
+
     /**
      * @brief Create a blank address, i.e. 00:00:00:00:00:00, type 0.
      */
@@ -60,7 +63,7 @@ class NimBLEAddress : private ble_addr_t {
     std::string          toString() const;
     uint8_t              getType() const;
     const uint8_t*       getVal() const;
-    void                 toChars(char buffer[18]) const;
+    void                 toChars(char (&buffer)[kAddrStrLen]) const;
     const NimBLEAddress& reverseByteOrder();
     bool                 operator==(const NimBLEAddress& rhs) const;
     bool                 operator!=(const NimBLEAddress& rhs) const;

@@ -34,12 +34,18 @@ portMUX_TYPE ble_port_mutex = portMUX_INITIALIZER_UNLOCKED;
 #  if CONFIG_BT_NIMBLE_USE_ESP_TIMER
 static const char *LOG_TAG = "Timer";
 #  endif
+/* Crosspoint patch: tag for self-heal diagnostics. These paths indicate the
+ * upstream NimBLE re-init bug fired; surfacing them lets us track recurrence
+ * instead of silently masking. */
+static const char *NPL_SELFHEAL_TAG = "npl_selfheal";
+#  define NPL_SELFHEAL_WARN(fmt, ...) ESP_LOGW(NPL_SELFHEAL_TAG, fmt, ##__VA_ARGS__)
 
 #else
 #include "nrf.h"
 static void *radio_isr_addr;
 static void *rng_isr_addr;
 static void *rtc0_isr_addr;
+#  define NPL_SELFHEAL_WARN(fmt, ...) ((void)0)
 #endif
 
 #ifdef ESP_PLATFORM
@@ -271,6 +277,7 @@ npl_freertos_mutex_pend(struct ble_npl_mutex *mu, ble_npl_time_t timeout)
      * mutexes after a deinit/init cycle; instead of asserting and rebooting,
      * just create one on demand. */
     if (!mu->handle) {
+        NPL_SELFHEAL_WARN("lazy-creating mutex %p (uninitialized pend)", (void *)mu);
         mu->handle = xSemaphoreCreateRecursiveMutex();
         if (!mu->handle) {
             return BLE_NPL_ENOENT;
@@ -294,10 +301,12 @@ npl_freertos_mutex_release(struct ble_npl_mutex *mu)
         return BLE_NPL_INVALID_PARAM;
     }
 
-    /* Crosspoint patch: silently no-op a release on a stale handle instead of
-     * asserting. If init was missed, pend() above will have created the handle
-     * and the matching release is a real one. */
+    /* Crosspoint patch: no-op a release on a stale handle instead of asserting.
+     * If init was missed, pend() above will have created the handle and the
+     * matching release is a real one. We log so genuine double-releases are
+     * visible rather than silently swallowed. */
     if (!mu->handle) {
+        NPL_SELFHEAL_WARN("release on stale mutex %p (no handle)", (void *)mu);
         return BLE_NPL_BAD_MUTEX;
     }
 
@@ -352,8 +361,13 @@ npl_freertos_sem_pend(struct ble_npl_sem *sem, ble_npl_time_t timeout)
     }
 
     /* Crosspoint patch: lazy-create on stale/uninitialized handle to survive
-     * partial re-init in the host stack. */
+     * partial re-init in the host stack. The max-count of 128 mirrors the
+     * value used in npl_freertos_sem_init() above; if the original sem was
+     * initialized with a smaller bound that information has been lost, so a
+     * lazy-recreated sem will accept more posts than the stack expects. The
+     * warning surfaces this so real overflow bugs aren't silently masked. */
     if (!sem->handle) {
+        NPL_SELFHEAL_WARN("lazy-creating sem %p (uninitialized pend)", (void *)sem);
         sem->handle = xSemaphoreCreateCounting(128, 0);
         if (!sem->handle) {
             return BLE_NPL_ENOENT;
@@ -387,9 +401,11 @@ npl_freertos_sem_release(struct ble_npl_sem *sem)
         return BLE_NPL_INVALID_PARAM;
     }
 
-    /* Crosspoint patch: silently no-op on a stale handle. Pend() above will
-     * have lazy-created any handle we actually need. */
+    /* Crosspoint patch: no-op on a stale handle. Pend() above will have
+     * lazy-created any handle we actually need; log so a release without a
+     * preceding pend is visible. */
     if (!sem->handle) {
+        NPL_SELFHEAL_WARN("release on stale sem %p (no handle)", (void *)sem);
         return BLE_NPL_ERROR;
     }
 

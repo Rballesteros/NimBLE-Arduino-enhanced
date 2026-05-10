@@ -88,9 +88,17 @@ void NimBLEAdvertisedDevice::update(const ble_gap_event* event, uint8_t eventTyp
 
 /**
  * @brief Clear the advertisement payload to free memory.
+ * @warning After calling this, the parsing accessors (getServiceUUID, getName,
+ *          getManufacturerData, etc.) will return empty/default values until
+ *          this device is re-populated by another advertisement event.
+ * @warning Not thread-safe with concurrent scan callbacks. Call only after
+ *          you are done extracting fields for this advertisement (typically
+ *          from inside the scan callback or after NimBLEScan::stop()), not
+ *          from a separate task while scanning is active.
  */
 void NimBLEAdvertisedDevice::clearPayload() {
-    m_advLength = 0;
+    m_advLength    = 0;
+    m_callbackSent = 0;
     std::vector<uint8_t>().swap(m_payload);
 } // clearPayload
 

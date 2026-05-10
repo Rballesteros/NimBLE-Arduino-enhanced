@@ -446,10 +446,13 @@ void NimBLEScan::setFilterPolicy(uint8_t filter) {
 
 /**
  * @brief Enable or disable whitelist filtering.
- * @param [in] enable True to use the whitelist, false to process all advertisements.
+ * @param [in] enable True to use the whitelist (BLE_HCI_SCAN_FILT_USE_WL),
+ *                    false to process all advertisements (BLE_HCI_SCAN_FILT_NO_WL).
+ * @note Convenience wrapper for the two common policies; use setFilterPolicy()
+ *       directly to select the BLE_HCI_SCAN_FILT_*_INITA variants.
  */
 void NimBLEScan::setFilterWhitelist(bool enable) {
-    m_scanParams.filter_policy = enable ? 1 : 0;
+    m_scanParams.filter_policy = enable ? BLE_HCI_SCAN_FILT_USE_WL : BLE_HCI_SCAN_FILT_NO_WL;
 } // setFilterWhitelist
 
 /**

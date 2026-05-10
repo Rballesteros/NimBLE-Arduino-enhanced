@@ -18,9 +18,14 @@
  */
 
 #include <stddef.h>
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nimble/porting/nimble/include/nimble/nimble_port.h"
+
+/* Single source of truth for the NimBLE host task name; used both at task
+ * creation and by esp_nimble_disable() to detect the self-delete case. */
+#define NIMBLE_HOST_TASK_NAME "nimble_host"
 
 static TaskHandle_t host_task_h = NULL;
 
@@ -53,7 +58,7 @@ esp_err_t esp_nimble_enable(void *host_task)
     * have separate task for NimBLE host, but since something needs to handle
     * default queue it is just easier to make separate task which does this.
     */
-    xTaskCreatePinnedToCore(host_task, "nimble_host", NIMBLE_HS_STACK_SIZE,
+    xTaskCreatePinnedToCore(host_task, NIMBLE_HOST_TASK_NAME, NIMBLE_HS_STACK_SIZE,
                             NULL, NIMBLE_HOST_TASK_PRIORITY, &host_task_h, NIMBLE_CORE);
     return ESP_OK;
 
@@ -66,15 +71,17 @@ esp_err_t esp_nimble_enable(void *host_task)
  */
 esp_err_t esp_nimble_disable(void)
 {
+    /* If we're being called from inside the host task itself (e.g. as the
+     * tail of nimble_port_run() exit), self-delete: vTaskDelete(NULL) does
+     * not return, so the cleanup below is unreachable on this path. */
     TaskHandle_t current = xTaskGetCurrentTaskHandle();
-    if (current != NULL && pcTaskGetName(NULL) != NULL) {
-        const char *task_name = pcTaskGetName(NULL);
-        if (strcmp(task_name, "nimble_host") == 0 || strcmp(task_name, "host") == 0) {
-            if (host_task_h == current) {
-                host_task_h = NULL;
-            }
-            vTaskDelete(NULL);
+    const char *task_name = pcTaskGetName(NULL);
+    if (current != NULL && task_name != NULL &&
+        strcmp(task_name, NIMBLE_HOST_TASK_NAME) == 0) {
+        if (host_task_h == current) {
+            host_task_h = NULL;
         }
+        vTaskDelete(NULL);
     }
     if (host_task_h) {
         vTaskDelete(host_task_h);
